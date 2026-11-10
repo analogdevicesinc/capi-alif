@@ -1,0 +1,21 @@
+# capi-alif module descriptor.
+#
+# Only the fields the capi SDK reads are kept here (see capi's
+# sdk/cmake/module_parser.cmake): name/type/version plus build.toolchain and
+# build.sdk_script, which capi_resolve_platform() uses to pick the toolchain
+# file and the vendor-SDK wiring script.
+#
+# Which platform/ sources are compiled is decided in CMakeLists.txt from the
+# Kconfig selection; the boards and cores are boards/<board>/<core>/,
+# discovered by BOARD, not listed here a second time.
+name: capi-alif
+type: platform
+version: "0.9.0"
+description: "CAPI Alif platform backend (Ensemble E8 DevKit: RTSS-HP/RTSS-HE Cortex-M55 cores, APSS Cortex-A32 stub)"
+
+capi_version_requirement: ">=0.9.0"
+
+build:
+  cmake:
+    toolchain: toolchain/toolchain.cmake
+    vendor_sdk: sdk/alif_platform_sdk.cmake

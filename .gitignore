@@ -1,0 +1,37 @@
+# Build artifacts
+build/
+build-*/
+build_*/
+reports/
+build-test/
+build-coverage/
+
+# Dependency pins resolved at configure time. Machine-specific -- every
+# entry is "via: local" on a developer box -- so the file belongs here
+# unless you deliberately want the pins tracked.
+capi.lock.yml
+
+# Object files / firmware images
+*.o
+*.d
+*.a
+*.elf
+*.hex
+*.bin
+*.map
+
+# Linker scripts preprocessed from Alif's .ld.src templates at configure
+# time (see sdk/alif_platform_sdk.cmake) -- generated, never edited.
+*.ld
+!boards/**/*.ld.src
+
+# Python
+__pycache__/
+*.pyc
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store

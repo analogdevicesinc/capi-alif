@@ -1,0 +1,7 @@
+# Stub only -- APSS (Cortex-A32) has no working toolchain/link yet (its
+# boot path goes through TF-A/Secure-Enclave handoff, out of scope for a
+# bare-metal capi app). Configuring this TARGET will fail at the toolchain
+# stage with a clear message -- see toolchain/toolchain.cmake.
+CONFIG_PLATFORM_DRIVERS=y
+CONFIG_ALIF=y
+CONFIG_ALIF_APSS=y

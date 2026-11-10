@@ -1,0 +1,105 @@
+menu "CAPI Platform Interfaces"
+
+config PLATFORM_DRIVERS
+	bool "Enable Platform Drivers"
+	default n
+
+config UART
+	bool "Enable UART"
+	default n
+
+config GPIO
+	bool "Enable GPIO"
+	default n
+
+config IRQ
+	bool "Enable IRQ"
+	default n
+
+config MAILBOX
+	bool "Enable Mailbox (inter-processor messaging)"
+	default n
+
+config SPI
+	bool "Enable SPI"
+	default n
+
+config I2C
+	bool "Enable I2C"
+	default n
+
+config PINCTRL
+	bool "Enable pin control (pad mux and pad settings)"
+	default n
+
+endmenu
+
+menuconfig ALIF
+	bool "Alif Platform Drivers"
+	default n
+	help
+	  Enable support for Alif Ensemble platform drivers.
+
+if ALIF
+
+choice
+	prompt "Alif RTSS core"
+	default ALIF_RTSS_HP
+	help
+	  The Ensemble E8 is heterogeneous multicore. Each capi build targets
+	  exactly one core -- pick which one this build is for. Building a
+	  dual-core demo means configuring/building twice, once per core.
+
+config ALIF_RTSS_HP
+	bool "RTSS-HP (Cortex-M55-HP, 400MHz, Ethos-U55)"
+
+config ALIF_RTSS_HE
+	bool "RTSS-HE (Cortex-M55-HE, 160MHz, Ethos-U55)"
+
+config ALIF_APSS
+	bool "APSS (Cortex-A32, stub -- no working bare-metal link yet)"
+
+endchoice
+
+config UART_ALIF
+	bool "Enable Alif UART driver"
+	depends on UART
+	default n
+
+config UART_STDIO_ALIF
+	bool "Enable Alif UART STDIO driver"
+	depends on UART
+	default n
+
+config GPIO_ALIF
+	bool "Enable Alif GPIO driver"
+	depends on GPIO
+	default n
+
+config IRQ_ALIF
+	bool "Enable Alif IRQ (NVIC) driver"
+	depends on IRQ
+	default n
+
+config MAILBOX_ALIF
+	bool "Enable Alif MHU-backed mailbox driver"
+	depends on MAILBOX
+	depends on ALIF_RTSS_HP || ALIF_RTSS_HE
+	default n
+
+config SPI_ALIF
+	bool "Enable Alif SPI controller driver (SPI0..3)"
+	depends on SPI
+	default y
+
+config I2C_ALIF
+	bool "Enable Alif I2C controller driver (I2C0..3, and I3C as I2C)"
+	depends on I2C
+	default y
+
+config PINCTRL_ALIF
+	bool "Enable Alif pin control driver (pinconf)"
+	depends on PINCTRL
+	default y
+
+endif # ALIF
