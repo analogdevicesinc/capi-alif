@@ -36,7 +36,7 @@ function(capi_alif_add_flash_target TARGET_NAME)
     endif()
     # The Secure Enclave's UART runs at a fixed, family-specific rate
     # (SETOOLS utils/featuresDB.db rev_baud_rate): 55000 on the E7, 57600
-    # on the E8. The board's board.cmake sets ALIF_SEUART_BAUD_DEFAULT.
+    # on the E8 and E1C. The board's board.cmake sets ALIF_SEUART_BAUD_DEFAULT.
     if(NOT ALIF_SEUART_BAUD_DEFAULT)
         set(ALIF_SEUART_BAUD_DEFAULT "55000")
     endif()
@@ -63,8 +63,13 @@ function(capi_alif_add_flash_target TARGET_NAME)
     # after the core and sibling to this one (build/rtss_hp, build/rtss_he).
     # A write replaces the whole ATOC, so the peer has to ride along or it gets
     # stubbed and stops running; the script skips it when it isn't built yet.
-    set(_alif_peer_image
+    set(_alif_peer_args ${_alif_peer_flag}
         "$<TARGET_FILE_DIR:${TARGET_NAME}>/../${_alif_peer_dir}/$<TARGET_FILE_BASE_NAME:${TARGET_NAME}>.bin")
+    # A part with one application core (board.cmake sets ALIF_SINGLE_CORE)
+    # has no peer, and its boot table has no stubs for cores it lacks.
+    if(ALIF_SINGLE_CORE)
+        set(_alif_peer_args --single-core)
+    endif()
 
     add_custom_target(flash
         COMMAND ${_alif_python3} "${_alif_flash_dir}/tools/alif_flash_multicore.py"
@@ -73,7 +78,7 @@ function(capi_alif_add_flash_target TARGET_NAME)
                 --device "${ALIF_SEUART_DEVICE}"
                 --baud "${ALIF_SEUART_BAUD}"
                 ${_alif_core_flag} "$<TARGET_FILE_DIR:${TARGET_NAME}>/$<TARGET_FILE_BASE_NAME:${TARGET_NAME}>.bin"
-                ${_alif_peer_flag} "${_alif_peer_image}"
+                ${_alif_peer_args}
         DEPENDS ${TARGET_NAME}
         COMMENT "Flashing ${TARGET_NAME} via SETOOLS"
         VERBATIM

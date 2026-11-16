@@ -73,7 +73,7 @@ def staged_name(core, path):
     return f"{core}_{os.path.basename(path)}"
 
 
-def build_toc_config(images, setools_dir):
+def build_toc_config(images, setools_dir, single_core=False):
     """Compose the app-gen-toc input.
 
     The A32 stub is always included: the boot chain expects an entry for
@@ -81,15 +81,21 @@ def build_toc_config(images, setools_dir):
     (observed as a successful write followed by nothing running at all).
     A core we are not flashing gets the vendor's stub so that it is still
     accounted for.
+
+    A single-core part (E1C, B1) has neither the APSS nor RTSS-HP, so its
+    table holds only the device config and the one image, as SETOOLS' own
+    build/config/app-cfg-1c.json does.
     """
     cfg = {
         "DEVICE": {
             "disabled": False,
-            "binary": "app-device-config.json",
+            "binary": "app-device-config-1c.json" if single_core else "app-device-config.json",
             "version": "0.5.00",
             "signed": True,
         },
-        "A32_STUB": {
+    }
+    if not single_core:
+        cfg["A32_STUB"] = {
             "disabled": False,
             "binary": "a32_stub_0.bin",
             "version": "1.0.0",
@@ -97,8 +103,7 @@ def build_toc_config(images, setools_dir):
             "loadAddress": "0x02000000",
             "cpu_id": "A32_0",
             "flags": ["load", "boot"],
-        },
-    }
+        }
 
     for core, _ in images.items():
         cfg[core.upper() + "_APP"] = {
@@ -110,6 +115,9 @@ def build_toc_config(images, setools_dir):
             "cpu_id": CORE_CPU_ID[core],
             "flags": ["boot"],
         }
+
+    if single_core:
+        return cfg
 
     # Any RTSS core without a real image still gets the vendor stub.
     stub_for = {"rtss_hp": "m55_stub_hp.bin", "rtss_he": "m55_stub_he.bin"}
@@ -242,6 +250,9 @@ def main():
     p.add_argument("--rtss-he", help="path to the RTSS-HE .bin")
     p.add_argument("--peer-rtss-hp", help="RTSS-HP .bin to include if it has been built")
     p.add_argument("--peer-rtss-he", help="RTSS-HE .bin to include if it has been built")
+    p.add_argument("--single-core", action="store_true",
+                   help="the part has one application core (E1C, B1): no "
+                        "peer image and no stubs")
     p.add_argument("--assume-maintenance", action="store_true",
                    help="skip the reset handshake (target is already in "
                         "maintenance mode, e.g. straight after a previous write)")
@@ -262,7 +273,7 @@ def main():
     # passes the *other* core's expected image here so that a core already
     # built alongside this one is carried along instead of being stubbed.
     for core, peer in (("rtss_hp", args.peer_rtss_hp), ("rtss_he", args.peer_rtss_he)):
-        if core in images or not peer:
+        if args.single_core or core in images or not peer:
             continue
         if os.path.isfile(peer):
             images[core] = peer
@@ -282,7 +293,7 @@ def main():
             return 1
         shutil.copy(path, os.path.join(img_dir, staged_name(core, path)))
 
-    cfg = build_toc_config(images, setools)
+    cfg = build_toc_config(images, setools, args.single_core)
     cfg_path = os.path.join(setools, "build", "config", "capi-alif-app-cfg.json")
     os.makedirs(os.path.dirname(cfg_path), exist_ok=True)
     with open(cfg_path, "w") as f:
