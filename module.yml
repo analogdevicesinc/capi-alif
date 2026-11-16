@@ -11,7 +11,7 @@
 name: capi-alif
 type: platform
 version: "0.9.0"
-description: "CAPI Alif platform backend (Ensemble E8 DevKit: RTSS-HP/RTSS-HE Cortex-M55 cores, APSS Cortex-A32 stub)"
+description: "CAPI Alif platform backend (DK-E8: RTSS-HP/RTSS-HE, APSS stub; DK-E1C, DK-B1: RTSS-HE)"
 
 capi_version_requirement: ">=0.9.0"
 

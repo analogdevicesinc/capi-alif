@@ -17,6 +17,8 @@
 #   ALIF_SOC_DIR         the DFP's Device/soc/<part> directory name
 #   ALIF_DFP_BOARD       the DFP's Boards/<board> directory name (pins.h,
 #                        board_defs.h for board_config.c)
+#   ALIF_DFP_BOARD_DIR   instead of ALIF_DFP_BOARD, a directory of the same
+#                        headers, for a board the DFP does not have
 #   ALIF_BOARD_NAME      optional, the board's name for applications, as
 #                        the ALIF_BOARD_NAME string macro (e.g. "DK-E8")
 
@@ -24,12 +26,21 @@ set(_alif_sdk_dir "${CMAKE_CURRENT_LIST_DIR}")
 get_filename_component(_alif_platform_dir "${_alif_sdk_dir}/.." ABSOLUTE)
 
 function(capi_alif_config_sdk APP_NAME)
-    foreach(_var CAPI_ALIF_BOARD_DIR ALIF_CORE ALIF_SOC_DIR ALIF_DFP_BOARD)
+    foreach(_var CAPI_ALIF_BOARD_DIR ALIF_CORE ALIF_SOC_DIR)
         if(NOT ${_var})
             message(FATAL_ERROR "capi_alif_config_sdk: ${_var} is not set -- "
                                 "the board's board.cmake must set it (TARGET '${TARGET}')")
         endif()
     endforeach()
+    if(ALIF_DFP_BOARD_DIR)
+        get_filename_component(_board_defs_dir "${ALIF_DFP_BOARD_DIR}" ABSOLUTE)
+    elseif(ALIF_DFP_BOARD)
+        set(_board_defs_dir "${ALIF_CMSIS_DFP_PATH}/Boards/${ALIF_DFP_BOARD}")
+    else()
+        message(FATAL_ERROR "capi_alif_config_sdk: neither ALIF_DFP_BOARD nor "
+                            "ALIF_DFP_BOARD_DIR is set -- the board's board.cmake "
+                            "must set one (TARGET '${TARGET}')")
+    endif()
     if("${ALIF_CORE}" STREQUAL "rtss_hp")
         set(_core_upper "HP")
     elseif("${ALIF_CORE}" STREQUAL "rtss_he")
@@ -85,7 +96,7 @@ function(capi_alif_config_sdk APP_NAME)
         # gpios.h, board_defs.h) that board_config.c walks -- this is what
         # actually routes UART4/GPIO to physical pins. Board-specific, but
         # consumed by the generic board_config.c below.
-        "${_dfp}/Boards/${ALIF_DFP_BOARD}"
+        "${_board_defs_dir}"
         "${_dfp}/libs/board_config"
         # board_config.h pulls in se_services_port.h (board_clocks_config()
         # talks to the Secure Enclave to request clocks); headers only --

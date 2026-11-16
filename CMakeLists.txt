@@ -18,7 +18,7 @@ set(_alif_core_to_choice
     "rtss_he=CONFIG_ALIF_RTSS_HE"
     "apss=CONFIG_ALIF_APSS"
 )
-set(_alif_boards dk-e8)
+set(_alif_boards dk-b1 dk-e1c dk-e8)
 
 if(DEFINED TARGET)
     set(_alif_expected_choice "")
