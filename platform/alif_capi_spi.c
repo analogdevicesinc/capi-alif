@@ -10,9 +10,11 @@
  * capi_spi_transceive() waits for the driver to clear `busy`, so the
  * caller sees a blocking transfer.
  *
- * Chip-select is the device's GPIO (capi_spi_device.cs_gpio), driven by
- * set_cs() in the usual order: assert, transceive, de-assert. The
- * controller's own SS pins are left unused.
+ * Chip-select is either the controller's own SS lines, selected by
+ * capi_spi_device.native_cs and driven by the controller for each
+ * transfer, or the device's GPIO (capi_spi_device.cs_gpio), driven by
+ * set_cs() in the usual order: assert, transceive, de-assert. The board
+ * muxes the SS pads it wires to a native chip-select.
  */
 
 #include "alif_capi_spi.h"
@@ -30,6 +32,8 @@
  * controller. Bit 13, between SLV_OE (12) and SSTE (14) in drivers/
  * include/spi.h, which does not name it. */
 #define ALIF_SPI_CTRLR0_SRL	(1UL << 13)
+/* CTRLR0.SSTE: raise SS between frames. */
+#define ALIF_SPI_CTRLR0_SSTE	(1UL << 14)
 
 extern ARM_DRIVER_SPI Driver_SPI0;
 extern ARM_DRIVER_SPI Driver_SPI1;
@@ -49,6 +53,7 @@ struct alif_spi_priv {
 	uint32_t speed_hz;
 	enum capi_spi_mode mode;
 	bool lsb_first;
+	uint16_t native_cs;
 };
 
 static struct alif_spi_priv *alif_spi_active[ALIF_SPI_INSTANCES];
@@ -97,10 +102,10 @@ static uint32_t alif_spi_frame_format(enum capi_spi_mode mode)
 	}
 }
 
-static void alif_spi_set_loopback(struct alif_spi_priv *priv)
+static void alif_spi_set_regs(struct alif_spi_priv *priv, uint16_t native_cs)
 {
-	/* CTRLR0 is writable only with the controller disabled; the
-	 * driver's own register updates keep this bit. */
+	/* CTRLR0 and SER are writable only with the controller disabled;
+	 * the driver's own register updates keep these bits. */
 	uint32_t en = priv->regs->SPI_ENR;
 
 	priv->regs->SPI_ENR = 0;
@@ -108,6 +113,15 @@ static void alif_spi_set_loopback(struct alif_spi_priv *priv)
 		priv->regs->SPI_CTRLR0 |= ALIF_SPI_CTRLR0_SRL;
 	else
 		priv->regs->SPI_CTRLR0 &= ~ALIF_SPI_CTRLR0_SRL;
+	if (native_cs) {
+		/* Keep the native chip-select low for the whole transfer. */
+		priv->regs->SPI_CTRLR0 &= ~ALIF_SPI_CTRLR0_SSTE;
+		priv->regs->SPI_SER = native_cs;
+	} else {
+		/* A transfer starts only with an SS line enabled; SS0, as
+		 * the driver's ARM_SPI_SS_MASTER_UNUSED does. */
+		priv->regs->SPI_SER = 1;
+	}
 	priv->regs->SPI_ENR = en;
 }
 
@@ -118,7 +132,7 @@ static int alif_spi_select_format(struct alif_spi_priv *priv,
 	uint32_t control;
 
 	if (priv->configured && speed == priv->speed_hz && device->mode == priv->mode &&
-	    device->lsb_first == priv->lsb_first)
+	    device->lsb_first == priv->lsb_first && device->native_cs == priv->native_cs)
 		return 0;
 
 	control = ARM_SPI_MODE_MASTER | alif_spi_frame_format(device->mode) |
@@ -126,12 +140,13 @@ static int alif_spi_select_format(struct alif_spi_priv *priv,
 		  ARM_SPI_SS_MASTER_UNUSED | ARM_SPI_DATA_BITS(8);
 	if (priv->drv->Control(control, speed) != ARM_DRIVER_OK)
 		return -EIO;
-	alif_spi_set_loopback(priv);
+	alif_spi_set_regs(priv, device->native_cs);
 
 	priv->configured = true;
 	priv->speed_hz = speed;
 	priv->mode = device->mode;
 	priv->lsb_first = device->lsb_first;
+	priv->native_cs = device->native_cs;
 	return 0;
 }
 
@@ -274,7 +289,7 @@ static int alif_capi_spi_set_cs(struct capi_spi_device *device,
 	case CAPI_SPI_CS_MANUAL_ASSERT:
 		/*
 		 * Program the device's format before selecting it. Control()
-		 * and the loopback update disable and re-enable the controller,
+		 * and the CTRLR0/SER update disable and re-enable the controller,
 		 * which can move SCLK; with CS already low the device can count
 		 * that as a clock. On DK-E8 this made ADXL367 reads vary from
 		 * one transfer to the next; with it they are repeatable.
