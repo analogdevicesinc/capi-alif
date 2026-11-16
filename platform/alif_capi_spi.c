@@ -34,7 +34,9 @@
 extern ARM_DRIVER_SPI Driver_SPI0;
 extern ARM_DRIVER_SPI Driver_SPI1;
 extern ARM_DRIVER_SPI Driver_SPI2;
+#ifdef SPI3
 extern ARM_DRIVER_SPI Driver_SPI3;
+#endif
 
 struct alif_spi_priv {
 	ARM_DRIVER_SPI *drv;
@@ -70,9 +72,11 @@ static ARM_DRIVER_SPI *alif_spi_driver_for(uint32_t instance, SPI_Type **regs)
 	case 2:
 		*regs = SPI2;
 		return &Driver_SPI2;
+#ifdef SPI3	/* not on E1C or B1 */
 	case 3:
 		*regs = SPI3;
 		return &Driver_SPI3;
+#endif
 	default:
 		return NULL;
 	}

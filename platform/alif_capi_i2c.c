@@ -44,8 +44,12 @@
 
 extern ARM_DRIVER_I2C Driver_I2C0;
 extern ARM_DRIVER_I2C Driver_I2C1;
+#ifdef I2C2
 extern ARM_DRIVER_I2C Driver_I2C2;
+#endif
+#ifdef I2C3
 extern ARM_DRIVER_I2C Driver_I2C3;
+#endif
 extern ARM_DRIVER_I3C Driver_I3C;
 
 struct alif_i2c_priv {
@@ -78,10 +82,14 @@ static ARM_DRIVER_I2C *alif_i2c_driver_for(uint32_t instance)
 		return &Driver_I2C0;
 	case 1:
 		return &Driver_I2C1;
+#ifdef I2C2	/* not on E1C or B1 */
 	case 2:
 		return &Driver_I2C2;
+#endif
+#ifdef I2C3
 	case 3:
 		return &Driver_I2C3;
+#endif
 	default:
 		return NULL;
 	}
@@ -295,10 +303,14 @@ static I2C_Type *alif_i2c_regs_for(uint32_t instance)
 		return I2C0;
 	case 1:
 		return I2C1;
+#ifdef I2C2
 	case 2:
 		return I2C2;
+#endif
+#ifdef I2C3
 	case 3:
 		return I2C3;
+#endif
 	default:
 		return NULL;
 	}
