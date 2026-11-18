@@ -8,8 +8,9 @@
  *
  *   console    UART2, 115200 8N1, through the PRG USB port's J-Link
  *              virtual COM port with SW4 = U2 (SW4 = SE for SETOOLS)
- *   Click SPI  SPI3: SCLK P12_6, MOSI P12_5, MISO P12_4 (alt 2); CS is a
- *              GPIO, P12_7 -- see bsp_click_cs
+ *   Click SPI  SPI3: SCLK P12_6, MOSI P12_5, MISO P12_4 (alt 2), CS P12_7
+ *              (alt 3). CS is SS0 for a device with native_cs = 1, or a
+ *              GPIO -- see bsp_click_cs -- once that is used
  *   Click I2C  I2C0: SCL P3_4, SDA P3_5 (alt 5)
  *   Click INT  P8_1, Click RST P8_3 (GPIOs)
  *   Click UART UART0: RX P0_0, TX P0_1 (alt 2), as capi_pinctrl

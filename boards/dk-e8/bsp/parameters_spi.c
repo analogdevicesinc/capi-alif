@@ -16,6 +16,7 @@ static const struct alif_capi_pin bsp_spi3_pins[] = {
 	 PADCTRL_READ_ENABLE | PADCTRL_SCHMITT_TRIGGER_ENABLE},	    /* MISO */
 	{PORT_12, PIN_5, PINMUX_ALTERNATE_FUNCTION_2, BSP_SPI_OUT_PADCTRL}, /* MOSI */
 	{PORT_12, PIN_6, PINMUX_ALTERNATE_FUNCTION_2, BSP_SPI_OUT_PADCTRL}, /* SCLK */
+	{PORT_12, PIN_7, PINMUX_ALTERNATE_FUNCTION_3, BSP_SPI_OUT_PADCTRL}, /* SS0 */
 };
 
 static const struct alif_capi_spi_extra bsp_spi3_extra = {
