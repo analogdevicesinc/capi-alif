@@ -17,10 +17,13 @@
 #include "alif_capi_uart.h"
 #include "capi_alloc.h"
 #include "Driver_USART.h"
+#include "uart.h"
 #include <errno.h>
 
 struct alif_uart_priv {
 	ARM_DRIVER_USART *drv;
+	/* The UART's registers, for its receive FIFO level. */
+	UART_Type *regs;
 };
 
 static struct capi_uart_handle *uart_stdio_handle;
@@ -45,6 +48,18 @@ static ARM_DRIVER_USART *alif_uart_driver_for(uint32_t identifier)
 		return &Driver_USART2;
 	case 4:
 		return &Driver_USART4;
+	default:
+		return NULL;
+	}
+}
+
+static UART_Type *alif_uart_regs_for(uint32_t identifier)
+{
+	switch (identifier) {
+	case 2:
+		return UART2;
+	case 4:
+		return UART4;
 	default:
 		return NULL;
 	}
@@ -141,6 +156,7 @@ static int alif_capi_uart_init(struct capi_uart_handle **handle,
 
 	uart_handle->ops = config->ops;
 	priv->drv = drv;
+	priv->regs = alif_uart_regs_for(config->identifier);
 
 	*handle = uart_handle;
 
@@ -254,7 +270,8 @@ static int alif_capi_uart_get_rx_fifo_count(struct capi_uart_handle *handle, uin
 		return -EINVAL;
 
 	priv = handle->priv;
-	*count = (uint16_t)priv->drv->GetRxCount();
+	/* The bytes waiting in the receive FIFO. */
+	*count = (uint16_t)priv->regs->UART_RFL;
 
 	return 0;
 }
