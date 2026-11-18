@@ -12,7 +12,10 @@
  * can tell "no device there" from a bus fault.
  *
  * A register read is the sub-address written without a STOP, then a
- * repeated START and the read.
+ * repeated START and the read. Where the driver rejects a transfer without
+ * a STOP (SOC_FEAT_I2C_HAS_RESTART_CAP is 0, e.g. E1C and B1), a register
+ * read uses its write-read mode instead, and other transfers end with a
+ * STOP.
  *
  * The I3C controller addresses targets through a device table, so each
  * transfer attaches its address, runs, and detaches it -- after completion.
@@ -30,9 +33,11 @@
 #include "capi_alloc.h"
 #include "capi_time.h"
 #include "Driver_I2C.h"
+#include "Driver_I2C_EX.h"
 #include "Driver_I3C.h"
 #include "i2c.h"
 #include "soc.h"
+#include "soc_features.h"
 #include <errno.h>
 #include <stdbool.h>
 #include <string.h>
@@ -383,6 +388,7 @@ static int alif_i2c_write(struct alif_i2c_priv *priv, uint16_t addr, const uint8
 {
 	if (priv->instance == ALIF_CAPI_I2C_ON_I3C)
 		return alif_i3c_transfer(addr, true, (uint8_t *)buf, len);
+	pending = pending && SOC_FEAT_I2C_HAS_RESTART_CAP;
 	alif_i2c_events[priv->instance] = 0;
 	if (priv->drv->MasterTransmit(addr, buf, len, pending) != ARM_DRIVER_OK)
 		return -EIO;
@@ -394,10 +400,33 @@ static int alif_i2c_read(struct alif_i2c_priv *priv, uint16_t addr, uint8_t *buf
 {
 	if (priv->instance == ALIF_CAPI_I2C_ON_I3C)
 		return alif_i3c_transfer(addr, false, buf, len);
+	pending = pending && SOC_FEAT_I2C_HAS_RESTART_CAP;
 	alif_i2c_events[priv->instance] = 0;
 	if (priv->drv->MasterReceive(addr, buf, len, pending) != ARM_DRIVER_OK)
 		return -EIO;
 	return alif_i2c_wait(priv, !pending);
+}
+
+/* A register read in the driver's write-read mode: the sub-address goes out
+ * from the start of the receive buffer, which the read then overwrites. */
+static int alif_i2c_write_read(struct alif_i2c_priv *priv, uint16_t addr, const uint8_t *sub,
+			       uint8_t sub_len, uint8_t *buf, uint32_t len, bool pending)
+{
+	uint8_t tmp[ARM_I2C_TAR_REG_ADDR_SIZE_Msk];
+	uint8_t *b = len >= sub_len ? buf : tmp;
+	int ret;
+
+	if (sub_len > sizeof(tmp))
+		return -EMSGSIZE;
+	memcpy(b, sub, sub_len);
+	if (priv->drv->Control(ARM_I2C_MODE_WRITE_READ,
+			       ARM_I2C_WRITE_READ_MODE_EN | sub_len) != ARM_DRIVER_OK)
+		return -EIO;
+	ret = alif_i2c_read(priv, addr, b, len, pending);
+	priv->drv->Control(ARM_I2C_MODE_WRITE_READ, ARM_I2C_WRITE_READ_MODE_DIS);
+	if (!ret && b != buf)
+		memcpy(buf, b, len);
+	return ret;
 }
 
 static uint16_t alif_i2c_addr(const struct capi_i2c_device *device,
@@ -443,6 +472,11 @@ static int alif_capi_i2c_receive(struct capi_i2c_device *device,
 		return -EINVAL;
 
 	addr = alif_i2c_addr(device, transfer);
+	if (transfer->sub_address_len && !SOC_FEAT_I2C_HAS_RESTART_CAP &&
+	    priv->instance != ALIF_CAPI_I2C_ON_I3C)
+		return alif_i2c_write_read(priv, addr, transfer->sub_address,
+					   transfer->sub_address_len, transfer->buf,
+					   transfer->len, transfer->no_stop);
 	if (transfer->sub_address_len) {
 		ret = alif_i2c_write(priv, addr, transfer->sub_address,
 				     transfer->sub_address_len, true);
